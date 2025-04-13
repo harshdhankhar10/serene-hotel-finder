@@ -41,3 +41,18 @@ export interface ChatMessage {
   timestamp: string;
   searchResults?: Hotel[];
 }
+
+export interface Currency {
+  code: string;
+  symbol: string;
+  rate: number;
+}
+
+export interface TripBudget {
+  nights: number;
+  roomRate: number;
+  meals: number;
+  transport: number;
+  activities: number;
+  currency: Currency;
+}
