@@ -63,8 +63,15 @@ export async function processSearchQuery(query: string): Promise<SearchParams> {
 
 export async function getHotelSuggestions(searchParams: SearchParams) {
   try {
-    // Default to a popular destination if location is not provided
-    const location = searchParams.location || "New York";
+    // If no location is provided, use Gemini to extract one from the query
+    let location = searchParams.location;
+    if (!location && searchParams.query) {
+      // Try to extract location from the query using Gemini
+      location = await extractLocationFromQuery(searchParams.query);
+    }
+    
+    // Default to a popular destination if location still not available
+    location = location || "New York";
     
     // Format check-in and check-out dates or use default dates
     const today = new Date();
@@ -81,6 +88,8 @@ export async function getHotelSuggestions(searchParams: SearchParams) {
       return date.toISOString().split('T')[0];
     }
 
+    console.log(`Searching for hotels in ${location}`);
+
     // Get location ID first
     const locationIdResponse = await fetch(`https://${HOTELS_API_HOST}/locations/v2/search?query=${encodeURIComponent(location)}&locale=en_US&currency=USD`, {
       method: "GET",
@@ -94,7 +103,7 @@ export async function getHotelSuggestions(searchParams: SearchParams) {
     
     if (!locationData.suggestions || locationData.suggestions.length === 0) {
       console.error("No location data found");
-      return fallbackToMockHotels(searchParams);
+      return await getAIGeneratedHotels(searchParams, location);
     }
     
     // Find the first city or region suggestion
@@ -104,7 +113,7 @@ export async function getHotelSuggestions(searchParams: SearchParams) {
     
     if (!locationSuggestion || !locationSuggestion.entities || locationSuggestion.entities.length === 0) {
       console.error("No valid location entities found");
-      return fallbackToMockHotels(searchParams);
+      return await getAIGeneratedHotels(searchParams, location);
     }
     
     const locationId = locationSuggestion.entities[0].destinationId;
@@ -122,7 +131,7 @@ export async function getHotelSuggestions(searchParams: SearchParams) {
     
     if (!hotelData.data || !hotelData.data.body || !hotelData.data.body.searchResults || !hotelData.data.body.searchResults.results) {
       console.error("No hotel data found");
-      return fallbackToMockHotels(searchParams);
+      return await getAIGeneratedHotels(searchParams, location);
     }
     
     // Map API results to our Hotel format
@@ -161,17 +170,148 @@ export async function getHotelSuggestions(searchParams: SearchParams) {
     return hotels;
   } catch (error) {
     console.error("Error fetching hotel data:", error);
-    return fallbackToMockHotels(searchParams);
+    return getAIGeneratedHotels(searchParams, searchParams.location || "popular destination");
   }
 }
 
-// Fallback to mock data if API fails
-function fallbackToMockHotels(searchParams: SearchParams) {
-  console.log("Falling back to mock hotel data");
-  return generateMockHotels(searchParams);
+// Use Gemini to extract location from the query
+async function extractLocationFromQuery(query: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Extract only the location name from this hotel search query: "${query}". 
+                Return just the location name, nothing else. If no location is found, return "null".`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.1,
+        }
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error("Gemini API error:", data.error);
+      return null;
+    }
+
+    const textResponse = data.candidates[0].content.parts[0].text.trim();
+    return textResponse === "null" ? null : textResponse;
+  } catch (error) {
+    console.error("Error extracting location:", error);
+    return null;
+  }
 }
 
+// Generate realistic hotel data using Gemini AI when API fails
+async function getAIGeneratedHotels(searchParams: SearchParams, location: string): Promise<Hotel[]> {
+  console.log("Generating AI hotels for", location);
+  try {
+    // First try to get real hotel data using Gemini
+    const hotelData = await generateHotelDataWithGemini(searchParams, location);
+    if (hotelData && hotelData.length > 0) {
+      return hotelData;
+    }
+    
+    // Fall back to mock data if Gemini fails
+    return generateMockHotels(searchParams);
+  } catch (error) {
+    console.error("Error generating AI hotels:", error);
+    return generateMockHotels(searchParams);
+  }
+}
+
+async function generateHotelDataWithGemini(searchParams: SearchParams, location: string): Promise<Hotel[]> {
+  try {
+    const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Generate 5 realistic hotels in ${location}. 
+                Return a JSON array with hotels having these properties:
+                {
+                  "name": (real hotel name),
+                  "location": (detailed address in ${location}),
+                  "price": (realistic price number between ${searchParams.priceMin || 1500} and ${searchParams.priceMax || 15000}),
+                  "rating": (number between 3 and 5),
+                  "tags": (array of 3-5 realistic amenities),
+                  "description": (short description of the hotel)
+                }
+                Return just the JSON array without any additional text.`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.7,
+        }
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error("Gemini API error:", data.error);
+      return [];
+    }
+
+    const textResponse = data.candidates[0].content.parts[0].text;
+    
+    // Extract JSON from the response (in case there's any extra text)
+    const jsonMatch = textResponse.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+    
+    const jsonStr = jsonMatch[0];
+    
+    // Parse the extracted JSON
+    const parsedData = JSON.parse(jsonStr);
+    
+    // Transform the data to match our Hotel type
+    const hotelImages = [
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1000",
+      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&q=80&w=1000",
+      "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&q=80&w=1000",
+      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&q=80&w=1000",
+      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=1000",
+    ];
+    
+    return parsedData.map((hotel: any, index: number) => ({
+      id: `hotel-ai-${index}`,
+      name: hotel.name,
+      location: hotel.location,
+      price: parseInt(hotel.price),
+      rating: parseFloat(hotel.rating),
+      image: hotelImages[index % hotelImages.length],
+      tags: hotel.tags || ["Free Wi-Fi", "Room Service", "Restaurant"],
+      description: hotel.description
+    }));
+    
+  } catch (error) {
+    console.error("Error generating hotels with Gemini:", error);
+    return [];
+  }
+}
+
+// Fallback mock data generator
 function generateMockHotels(searchParams: SearchParams) {
+  console.log("Falling back to mock hotel data");
   // Generate 10 mock hotels based on search parameters
   const hotels = [];
   // Real hotel names

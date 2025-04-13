@@ -29,6 +29,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import HotelCalculator from '@/components/HotelCalculator';
+import TeamMembers from '@/components/TeamMembers';
 
 const featuredDestinations = [
   { 
@@ -511,6 +512,8 @@ const Index = () => {
             ))}
           </div>
         </section>
+        
+        <TeamMembers />
       </div>
     </div>
   );
