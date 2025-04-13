@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -61,7 +60,7 @@ const featuredDestinations = [
 const testimonials = [
   {
     name: "Sarah T.",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=256",
+    image: "https://images.unsplash.com/photo-1494790108377-bee7453e911c?auto=format&fit=crop&q=80&w=256",
     comment: "The AI search feature made finding the perfect beach resort so easy. I just typed what I wanted, and it found exactly what I was looking for!",
     location: "New York, USA"
   },
@@ -101,12 +100,10 @@ const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Format currency based on selected location
   const formatCurrency = (amount: number) => {
     const currency = currencyByLocation[selectedLocation as keyof typeof currencyByLocation];
     if (!currency) return `₹${amount}`;
     
-    // Simple conversion rates (mock data)
     const rates = {
       "INR": 1,
       "USD": 0.012,
@@ -136,7 +133,6 @@ const Index = () => {
     try {
       const searchParams = await processSearchQuery(searchQuery);
       
-      // Add date and guest info if not in query
       if (!searchParams.checkIn && checkIn) {
         searchParams.checkIn = format(checkIn, 'yyyy-MM-dd');
       }
@@ -164,7 +160,6 @@ const Index = () => {
   return (
     <div className="flex flex-col items-center min-h-[calc(100vh-8rem)]">
       <div className="w-full max-w-7xl px-4">
-        {/* Hero Section */}
         <div className="text-center mb-8 pt-8 animate-fade-in">
           <h1 className="font-heading text-4xl sm:text-6xl font-bold mb-4 tracking-tight">
             Find Your Dream Stay with <span className="ai-gradient-text">AI Assistance</span>
@@ -173,7 +168,6 @@ const Index = () => {
             Describe your perfect hotel in natural language, and our AI will find the best matches tailored for you in seconds.
           </p>
           
-          {/* Main Search Card */}
           <div className="relative mb-12 animate-fade-in rounded-3xl shadow-xl overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-purple-100 opacity-70 transform -rotate-1 scale-105"></div>
             <div className="relative bg-white p-8 rounded-2xl">
@@ -317,7 +311,7 @@ const Index = () => {
                   {showCalculator && (
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                       <HotelCalculator 
-                        currency={currencyByLocation[selectedLocation as keyof typeof currencyByLocation]?.symbol || "₹"} 
+                        defaultCurrency={currencyByLocation[selectedLocation as keyof typeof currencyByLocation]?.code || "INR"} 
                       />
                     </div>
                   )}
@@ -366,7 +360,6 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Featured Destinations */}
         <section className="mb-16 animate-fade-in" style={{ animationDelay: "0.1s" }}>
           <div className="flex justify-between items-center mb-6">
             <h2 className="font-heading text-2xl font-bold">Featured Destinations</h2>
@@ -404,7 +397,6 @@ const Index = () => {
           </div>
         </section>
         
-        {/* Why Choose Us */}
         <section className="mb-16 py-10 px-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-3xl animate-fade-in" style={{ animationDelay: "0.2s" }}>
           <div className="text-center mb-8">
             <h2 className="font-heading text-3xl font-bold mb-3">Why Choose Our AI Hotel Finder</h2>
@@ -438,7 +430,6 @@ const Index = () => {
           </div>
         </section>
         
-        {/* Customer Testimonials */}
         <section className="mb-16 animate-fade-in" style={{ animationDelay: "0.3s" }}>
           <h2 className="font-heading text-2xl font-bold mb-8 text-center">What Our Customers Say</h2>
           
@@ -475,7 +466,6 @@ const Index = () => {
           </Carousel>
         </section>
         
-        {/* Call to Action */}
         <section className="mb-16 text-center animate-fade-in" style={{ animationDelay: "0.4s" }}>
           <div className="bg-gradient-to-r from-primary/90 to-purple-600/90 text-white py-12 px-6 rounded-3xl relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=1000')] opacity-20 bg-cover bg-center mix-blend-overlay"></div>
@@ -493,7 +483,6 @@ const Index = () => {
           </div>
         </section>
         
-        {/* FAQ Section */}
         <section className="mb-16 animate-fade-in" style={{ animationDelay: "0.5s" }}>
           <h2 className="font-heading text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

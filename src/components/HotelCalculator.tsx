@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Calculator, DollarSign, CreditCard, IndianRupee, Euro, PoundSterling, Japanese, Yen } from 'lucide-react';
+import { Calculator, DollarSign, CreditCard, IndianRupee, Euro, PoundSterling, JapaneseYen } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
