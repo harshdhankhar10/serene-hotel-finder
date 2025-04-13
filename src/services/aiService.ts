@@ -1,9 +1,11 @@
 
-import { SearchParams } from "@/types";
+import { Hotel, SearchParams } from "@/types";
 
 // This should be stored securely. For production, use server-side API or secrets management
 const GEMINI_API_KEY = "AIzaSyA83h1LJnOlGFK1oavFozCYwmL25S452yg"; 
 const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const HOTELS_API_KEY = "d9b8c5d0a3msh5ea2981f0a3d6a3p1fa7e5jsn7a02e83297c7"; // This is a temporary key for demonstration
+const HOTELS_API_HOST = "hotels-com-provider.p.rapidapi.com";
 
 export async function processSearchQuery(query: string): Promise<SearchParams> {
   try {
@@ -60,17 +62,126 @@ export async function processSearchQuery(query: string): Promise<SearchParams> {
 }
 
 export async function getHotelSuggestions(searchParams: SearchParams) {
-  // In a real app, this would call the Gemini API to get hotel suggestions
-  // For now, we'll return mock data
-  const mockHotels = generateMockHotels(searchParams);
-  return mockHotels;
+  try {
+    // Default to a popular destination if location is not provided
+    const location = searchParams.location || "New York";
+    
+    // Format check-in and check-out dates or use default dates
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    
+    const checkIn = searchParams.checkIn || formatDate(tomorrow);
+    const checkOut = searchParams.checkOut || formatDate(nextWeek);
+    
+    // Format dates for API (YYYY-MM-DD)
+    function formatDate(date: Date): string {
+      return date.toISOString().split('T')[0];
+    }
+
+    // Get location ID first
+    const locationIdResponse = await fetch(`https://${HOTELS_API_HOST}/locations/v2/search?query=${encodeURIComponent(location)}&locale=en_US&currency=USD`, {
+      method: "GET",
+      headers: {
+        'X-RapidAPI-Key': HOTELS_API_KEY,
+        'X-RapidAPI-Host': HOTELS_API_HOST
+      }
+    });
+
+    const locationData = await locationIdResponse.json();
+    
+    if (!locationData.suggestions || locationData.suggestions.length === 0) {
+      console.error("No location data found");
+      return fallbackToMockHotels(searchParams);
+    }
+    
+    // Find the first city or region suggestion
+    const locationSuggestion = locationData.suggestions.find((suggestion: any) => 
+      suggestion.group === "CITY_GROUP" || suggestion.group === "REGION_GROUP"
+    );
+    
+    if (!locationSuggestion || !locationSuggestion.entities || locationSuggestion.entities.length === 0) {
+      console.error("No valid location entities found");
+      return fallbackToMockHotels(searchParams);
+    }
+    
+    const locationId = locationSuggestion.entities[0].destinationId;
+    
+    // Now search for hotels with the location ID
+    const hotelSearchResponse = await fetch(`https://${HOTELS_API_HOST}/properties/list?destinationId=${locationId}&checkIn=${checkIn}&checkOut=${checkOut}&adults1=1&locale=en_US&currency=USD`, {
+      method: "GET",
+      headers: {
+        'X-RapidAPI-Key': HOTELS_API_KEY,
+        'X-RapidAPI-Host': HOTELS_API_HOST
+      }
+    });
+    
+    const hotelData = await hotelSearchResponse.json();
+    
+    if (!hotelData.data || !hotelData.data.body || !hotelData.data.body.searchResults || !hotelData.data.body.searchResults.results) {
+      console.error("No hotel data found");
+      return fallbackToMockHotels(searchParams);
+    }
+    
+    // Map API results to our Hotel format
+    const hotels: Hotel[] = hotelData.data.body.searchResults.results
+      .slice(0, 10) // Limit to 10 hotels
+      .map((hotel: any) => {
+        // Extract amenities/tags
+        const amenities = hotel.amenities ? 
+          hotel.amenities.slice(0, 5).map((amenity: any) => amenity.name || "").filter(Boolean) : 
+          ["Free Wi-Fi", "Parking"];
+          
+        // Get price
+        const price = hotel.ratePlan && hotel.ratePlan.price ? 
+          Number(hotel.ratePlan.price.current.replace(/[^0-9.]/g, '')) : 
+          (5000 + Math.floor(Math.random() * 5000));
+          
+        // Get image
+        const image = hotel.optimizedThumbUrls && hotel.optimizedThumbUrls.srpDesktop ? 
+          hotel.optimizedThumbUrls.srpDesktop : 
+          "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1000";
+          
+        return {
+          id: `hotel-${hotel.id || Math.random().toString(36).substring(2, 10)}`,
+          name: hotel.name || "Luxury Hotel",
+          location: hotel.address ? 
+            `${hotel.address.streetAddress || ""}, ${hotel.address.locality || ""}, ${hotel.address.region || ""}`.trim() : 
+            location,
+          price: price,
+          rating: hotel.starRating || (3 + Math.random() * 2),
+          image: image,
+          tags: amenities,
+          description: hotel.neighbourhood || "Experience luxury and comfort at our prime location with stunning views and excellent service."
+        };
+      });
+      
+    return hotels;
+  } catch (error) {
+    console.error("Error fetching hotel data:", error);
+    return fallbackToMockHotels(searchParams);
+  }
+}
+
+// Fallback to mock data if API fails
+function fallbackToMockHotels(searchParams: SearchParams) {
+  console.log("Falling back to mock hotel data");
+  return generateMockHotels(searchParams);
 }
 
 function generateMockHotels(searchParams: SearchParams) {
   // Generate 10 mock hotels based on search parameters
   const hotels = [];
+  // Real hotel names
+  const hotelNames = [
+    "The Ritz-Carlton", "Four Seasons Hotel", "Marriott Hotel", "Hilton Garden Inn", 
+    "Hyatt Regency", "Sheraton Grand", "InterContinental", "Mandarin Oriental",
+    "The Peninsula", "W Hotel", "St. Regis", "JW Marriott", "Westin", "Waldorf Astoria"
+  ];
   const locations = ["Goa", "Mumbai", "Delhi", "Bangalore", "Jaipur", "Udaipur", "Chennai", "Kolkata"];
-  const tags = ["Sea View", "Free Wi-Fi", "Swimming Pool", "Breakfast Included", "Spa", "Gym", "Restaurant", "Bar"];
+  const tags = ["Free Wi-Fi", "Swimming Pool", "Breakfast Included", "Spa", "Gym", "Restaurant", "Bar", "Room Service"];
   const images = [
     "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1000",
     "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&q=80&w=1000",
@@ -86,7 +197,7 @@ function generateMockHotels(searchParams: SearchParams) {
   const minPrice = searchParams.priceMin || 1500;
   const maxPrice = searchParams.priceMax || 10000;
 
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 0; i < 10; i++) {
     const randomTags = [];
     const numTags = 2 + Math.floor(Math.random() * 3); // 2-4 tags
     
@@ -112,7 +223,7 @@ function generateMockHotels(searchParams: SearchParams) {
     
     hotels.push({
       id: `hotel-${i}`,
-      name: `${["Luxury", "Sunset", "Ocean", "Royal", "Grand", "Elite"][Math.floor(Math.random() * 6)]} Hotel ${i}`,
+      name: hotelNames[Math.floor(Math.random() * hotelNames.length)],
       location: location,
       price: price,
       rating: 3 + Math.random() * 2, // 3-5 rating
