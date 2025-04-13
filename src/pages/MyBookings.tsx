@@ -2,12 +2,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { Calendar, MapPin, Users, X, Hotel, AlertTriangle } from "lucide-react";
+import { Calendar, MapPin, Users, X, Hotel, AlertTriangle, Calculator as CalculatorIcon, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Booking } from "@/types";
 import { getBookings, cancelBooking } from "@/services/bookingService";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import HotelCalculator from "@/components/HotelCalculator";
 
 const MyBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -61,7 +63,7 @@ const MyBookings = () => {
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="font-heading text-2xl sm:text-3xl font-bold">My Bookings</h1>
+        <h1 className="font-heading text-2xl sm:text-3xl font-bold">Dashboard</h1>
         <Button asChild variant="outline" size="sm">
           <Link to="/">
             <Hotel className="mr-2 h-4 w-4" />
@@ -69,73 +71,94 @@ const MyBookings = () => {
           </Link>
         </Button>
       </div>
-      
-      {bookings.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bookings.map((booking) => (
-            <div key={booking.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="relative h-40">
-                <img 
-                  src={booking.image} 
-                  alt={booking.hotelName} 
-                  className="w-full h-full object-cover"
-                />
-                <Button 
-                  variant="destructive" 
-                  size="icon" 
-                  className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                  onClick={() => setBookingToCancel(booking)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <div className="p-4">
-                <h3 className="font-heading font-medium text-lg mb-2">{booking.hotelName}</h3>
-                
-                <div className="flex items-center text-muted-foreground text-sm mb-4">
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {booking.location}
-                </div>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm">
-                    <Calendar className="h-4 w-4 mr-2 text-primary" />
-                    <span>
-                      {formatDate(booking.checkIn)} to {formatDate(booking.checkOut)}
-                    </span>
+
+      <Tabs defaultValue="bookings" className="mb-8">
+        <TabsList className="mb-6">
+          <TabsTrigger value="bookings" className="flex items-center">
+            <CreditCard className="h-4 w-4 mr-2" />
+            My Bookings
+          </TabsTrigger>
+          <TabsTrigger value="calculator" className="flex items-center">
+            <CalculatorIcon className="h-4 w-4 mr-2" />
+            Budget Calculator
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="bookings">
+          {bookings.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {bookings.map((booking) => (
+                <div key={booking.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="relative h-40">
+                    <img 
+                      src={booking.image} 
+                      alt={booking.hotelName} 
+                      className="w-full h-full object-cover"
+                    />
+                    <Button 
+                      variant="destructive" 
+                      size="icon" 
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                      onClick={() => setBookingToCancel(booking)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                   
-                  <div className="flex items-center text-sm">
-                    <Users className="h-4 w-4 mr-2 text-primary" />
-                    <span>{booking.guests} {booking.guests === 1 ? "Guest" : "Guests"}</span>
+                  <div className="p-4">
+                    <h3 className="font-heading font-medium text-lg mb-2">{booking.hotelName}</h3>
+                    
+                    <div className="flex items-center text-muted-foreground text-sm mb-4">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {booking.location}
+                    </div>
+                    
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-sm">
+                        <Calendar className="h-4 w-4 mr-2 text-primary" />
+                        <span>
+                          {formatDate(booking.checkIn)} to {formatDate(booking.checkOut)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center text-sm">
+                        <Users className="h-4 w-4 mr-2 text-primary" />
+                        <span>{booking.guests} {booking.guests === 1 ? "Guest" : "Guests"}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center pt-2 border-t">
+                      <span className="font-medium">Total</span>
+                      <span className="font-medium">₹{booking.price.toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Booked on {format(parseISO(booking.bookingDate), "PP")}
+                    </div>
                   </div>
                 </div>
-                
-                <div className="flex justify-between items-center pt-2 border-t">
-                  <span className="font-medium">Total</span>
-                  <span className="font-medium">₹{booking.price.toLocaleString()}</span>
-                </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Booked on {format(parseISO(booking.bookingDate), "PP")}
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl p-8">
-          <div className="text-4xl mb-4">🏨</div>
-          <h3 className="font-heading text-xl font-medium mb-2">No bookings yet</h3>
-          <p className="text-muted-foreground text-center mb-4">
-            You haven't made any hotel bookings yet. Start by searching for hotels.
-          </p>
-          <Button asChild>
-            <Link to="/">Search Hotels</Link>
-          </Button>
-        </div>
-      )}
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl p-8">
+              <div className="text-4xl mb-4">🏨</div>
+              <h3 className="font-heading text-xl font-medium mb-2">No bookings yet</h3>
+              <p className="text-muted-foreground text-center mb-4">
+                You haven't made any hotel bookings yet. Start by searching for hotels.
+              </p>
+              <Button asChild>
+                <Link to="/">Search Hotels</Link>
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="calculator">
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <HotelCalculator />
+          </div>
+        </TabsContent>
+      </Tabs>
       
       {/* Confirmation dialog for cancelling booking */}
       {bookingToCancel && (
